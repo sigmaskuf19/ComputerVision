@@ -1,0 +1,4 @@
+samples/**.png
+__pycache__
+venv
+.venv
