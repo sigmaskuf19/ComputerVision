@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Document Cleaning Pipeline Report</title>
+  <style>
+    :root {
+      --ink: #1d2329;
+      --muted: #5d6975;
+      --line: #d8dee5;
+      --panel: #f6f8fa;
+      --paper: #ffffff;
+      --accent: #087f8c;
+      --accent-2: #b75d2a;
+      --ok: #1f7a4d;
+      --warn: #9b6214;
+      --fail: #a33f3f;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #eef2f3; letter-spacing: 0; }
+    img { display: block; width: 100%; height: auto; }
+    h1, h2, h3, p { margin-top: 0; }
+    .hero { min-height: 78vh; display: grid; align-items: end; background: linear-gradient(90deg, rgba(10,18,24,.9), rgba(10,18,24,.55) 58%, rgba(10,18,24,.2)), url("assets/doc_1/best/pipeline_summary.png") center / cover; color: #fff; padding: 64px 24px 52px; }
+    .hero-inner, .section-inner { width: min(1180px, 100%); margin: 0 auto; }
+    .eyebrow { color: #aadfe4; font-size: .82rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0; }
+    .eyebrow.dark { color: var(--accent); }
+    h1 { max-width: 900px; margin-bottom: 18px; font-size: clamp(2.3rem, 7vw, 5.4rem); line-height: .98; letter-spacing: 0; }
+    h2 { margin-bottom: 0; font-size: clamp(1.7rem, 4vw, 2.9rem); line-height: 1.08; letter-spacing: 0; }
+    h3 { margin-bottom: 10px; font-size: 1.15rem; }
+    .hero-copy { max-width: 780px; color: #dbe7ea; font-size: 1.08rem; line-height: 1.65; }
+    .hero-metrics, .metric-grid, .stage-grid, .image-grid, .result-grid { display: grid; gap: 16px; }
+    .hero-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 34px; max-width: 980px; }
+    .stat { border: 1px solid rgba(255,255,255,.24); background: rgba(255,255,255,.1); padding: 18px; backdrop-filter: blur(8px); }
+    .stat strong { display: block; margin-bottom: 6px; font-size: 1.55rem; line-height: 1; }
+    .stat span { color: #dbe7ea; font-size: .82rem; font-weight: 700; text-transform: uppercase; }
+    section { padding: 64px 24px; background: var(--paper); }
+    section.alt { background: var(--panel); }
+    .section-heading, .sample-heading, .split-title { display: flex; gap: 24px; align-items: end; justify-content: space-between; margin-bottom: 28px; }
+    .section-note, .sample-heading p, .split-title span { max-width: 500px; margin-bottom: 0; color: var(--muted); line-height: 1.55; }
+    .algorithm-box { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 26px; }
+    .info-card, .summary-panel, .image-card, .stage-card { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); overflow: hidden; box-shadow: 0 8px 28px rgba(29,35,41,.06); }
+    .info-card, .summary-panel, .stage-card { padding: 24px; }
+    .info-card p, .stage-card p { margin-bottom: 0; color: var(--muted); line-height: 1.58; }
+    .stage-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .stage-number { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-bottom: 18px; border-radius: 999px; color: #fff; background: var(--accent); font-weight: 800; }
+    .stage-card:nth-child(2n) .stage-number { background: var(--accent-2); }
+    .tabs { display: flex; gap: 8px; margin-bottom: 24px; overflow-x: auto; padding-bottom: 4px; }
+    .tab-button { min-width: 134px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); padding: 11px 14px; font: inherit; font-weight: 800; text-align: left; cursor: pointer; }
+    .tab-button span { display: block; margin-top: 4px; color: var(--muted); font-size: .82rem; font-weight: 700; }
+    .tab-button.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .tab-button.active span { color: #d8f2f3; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .result-grid { grid-template-columns: .86fr 1.14fr; align-items: start; }
+    .result-grid.compact { margin-top: 0; }
+    .status { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 999px; color: #fff; background: var(--ok); font-size: .86rem; font-weight: 800; }
+    .status.warn { background: var(--warn); }
+    .status.fail { background: var(--fail); }
+    .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 22px; }
+    .metric { padding-top: 14px; border-top: 1px solid var(--line); }
+    .metric strong { display: block; font-size: 1.35rem; line-height: 1.15; overflow-wrap: anywhere; }
+    .metric span { color: var(--muted); font-size: .9rem; }
+    .caption { padding: 12px 14px 14px; color: var(--muted); font-size: .9rem; line-height: 1.4; }
+    .image-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .image-card img { aspect-ratio: 4 / 3; object-fit: cover; background: #dfe5ea; }
+    .comparison-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: 0 8px 28px rgba(29,35,41,.06); }
+    table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: .94rem; }
+    th, td { padding: 13px 16px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+    th { color: #39434d; background: #edf2f4; font-size: .78rem; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .best-row { background: #edf8f6; }
+    .score { font-weight: 800; }
+    .split-title { margin-top: 42px; margin-bottom: 16px; }
+    .code-line { display: block; overflow-x: auto; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; color: #f2f6f7; background: #182026; font: .9rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; }
+    .footer { padding: 32px 24px; color: var(--muted); background: #e5eaed; font-size: .92rem; }
+    @media (max-width: 860px) {
+      .hero { min-height: 88vh; }
+      .hero-metrics, .metric-grid, .stage-grid, .image-grid, .result-grid, .algorithm-box { grid-template-columns: 1fr; }
+      .section-heading, .sample-heading, .split-title { display: block; }
+      .section-note, .sample-heading p, .split-title span { margin-top: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="eyebrow">Computer Vision Pipeline Report</div>
+      <h1>Document Cleaning Pipeline</h1>
+      <p class="hero-copy">Static GitHub Pages report for all five sample documents. Each tab shows the default CLAHE contour run, the best-scoring comparison run, generated stage artifacts, and the full enhancement/detection matrix.</p>
+      <div class="hero-metrics" aria-label="Pipeline highlights">
+        <div class="stat"><strong>5</strong><span>Samples Processed</span></div>
+        <div class="stat"><strong>20</strong><span>Combos Per Sample</span></div>
+        <div class="stat"><strong>90.0%</strong><span>Top Score</span></div>
+        <div class="stat"><strong>2</strong><span>Clean Passes</span></div>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="section-inner">
+      <div class="section-heading">
+        <h2>Best Algorithm Selection</h2>
+        <p class="section-note">The comparison is a deterministic grid search over existing local pipeline options; it does not train or tune new model weights.</p>
+      </div>
+      <div class="algorithm-box">
+        <div class="info-card">
+          <h3>Search Space</h3>
+          <p>For each sample, the runner evaluates 5 enhancement choices: CLAHE, gamma correction, histogram equalization, denoising, and no enhancement. Each is paired with 4 detection choices: contour, Hough, edge analysis, and auto fallback.</p>
+        </div>
+        <div class="info-card">
+          <h3>Ranking Rule</h3>
+          <p>Every successful run returns blur, contrast, brightness, sharpness, and text-coverage metrics. The report selects the run with the highest computed quality score. Failed document detections are marked as failures and cannot be selected.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="section-inner">
+      <div class="section-heading">
+        <h2>Pipeline Stages</h2>
+        <p class="section-note">The same processing stages are used for every tab; only enhancement and detection strategy vary in the comparison run.</p>
+      </div>
+      <div class="stage-grid">
+        <article class="stage-card">
+          <div class="stage-number">1</div>
+          <h3>Enhance</h3>
+          <p>Upscale the input and apply CLAHE, gamma correction, histogram equalization, denoising, or no enhancement.</p>
+        </article>
+        <article class="stage-card">
+          <div class="stage-number">2</div>
+          <h3>Segment Edges</h3>
+          <p>Blur the enhanced image, compute median-based Canny thresholds, and dilate edges to strengthen document boundaries.</p>
+        </article>
+        <article class="stage-card">
+          <div class="stage-number">3</div>
+          <h3>Detect Document</h3>
+          <p>Try contour, Hough, or edge-analysis detection, order four corners, and warp the document to a rectangular scan.</p>
+        </article>
+        <article class="stage-card">
+          <div class="stage-number">4</div>
+          <h3>Threshold</h3>
+          <p>Convert the corrected scan to grayscale and run adaptive Gaussian thresholding with block size 11 and C value 7.</p>
+        </article>
+        <article class="stage-card">
+          <div class="stage-number">5</div>
+          <h3>Clean Mask</h3>
+          <p>Apply close, open, and final close morphology with a 3x3 elliptical kernel to fill gaps and remove isolated noise.</p>
+        </article>
+        <article class="stage-card">
+          <div class="stage-number">6</div>
+          <h3>Decide</h3>
+          <p>Score blur, contrast, brightness range, sharpness, and text coverage to produce a pass, warning, or fail grade.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-inner">
+      <div class="tabs" role="tablist" aria-label="Sample documents">
+        <button class="tab-button active" type="button" data-tab="doc_1">Doc 1<span>90.0%</span></button>
+        <button class="tab-button" type="button" data-tab="doc_2">Doc 2<span>55.0%</span></button>
+        <button class="tab-button" type="button" data-tab="doc_3">Doc 3<span>65.0%</span></button>
+        <button class="tab-button" type="button" data-tab="doc_4">Doc 4<span>90.0%</span></button>
+        <button class="tab-button" type="button" data-tab="doc_5">Doc 5<span>55.0%</span></button>
+      </div>
+
+      <article id="doc_1" class="tab-panel active">
+        <div class="sample-heading">
+          <div>
+            <div class="eyebrow dark">Doc 1</div>
+            <h2>Doc 1 Pipeline Results</h2>
+          </div>
+          <p>Best run: <strong>hist_eq+auto</strong>, detection used: <strong>contour</strong>, score: <strong>90.0%</strong>.</p>
+        </div>
+
+        <div class="result-grid">
+          <div class="summary-panel">
+            <span class="status warn">Default: PASS (with warnings)</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>70.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>PASS (with warnings)</strong><span>Decision</span></div>
+              <div class="metric"><strong>80.16</strong><span>Blur score</span></div>
+              <div class="metric"><strong>7.53%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_1/default/pipeline_summary.png" alt="Default pipeline summary for doc_1">
+            <div class="caption">Default CLAHE plus contour run for Doc 1.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Best Run</h3>
+          <span>20 successful combinations, 0 failed detections</span>
+        </div>
+        <div class="result-grid compact">
+          <div class="summary-panel">
+            <span class="status ok">Best: PASS</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>90.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>PASS</strong><span>Decision</span></div>
+              <div class="metric"><strong>209.37</strong><span>Blur score</span></div>
+              <div class="metric"><strong>8.93%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_1/best/pipeline_summary.png" alt="Best pipeline summary for doc_1">
+            <div class="caption">Best-scoring comparison artifact for Doc 1: hist_eq+auto.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Stage Artifacts</h3>
+          <span>Generated from the selected best run</span>
+        </div>
+        <div class="image-grid">
+          <div class="image-card"><img src="assets/doc_1/best/original.png" alt="Original doc_1"><div class="caption">Original input</div></div>
+          <div class="image-card"><img src="assets/doc_1/best/enhanced.png" alt="Enhanced doc_1"><div class="caption">Best-run enhancement</div></div>
+          <div class="image-card"><img src="assets/doc_1/best/edges.png" alt="Edges doc_1"><div class="caption">Best-run edge map</div></div>
+          <div class="image-card"><img src="assets/doc_1/best/corner_detection.png" alt="Corners doc_1"><div class="caption">Best-run detected corners</div></div>
+          <div class="image-card"><img src="assets/doc_1/best/thresholded.png" alt="Threshold doc_1"><div class="caption">Best-run adaptive threshold</div></div>
+          <div class="image-card"><img src="assets/doc_1/best/cleaned_mask.png" alt="Best-run cleaned mask doc_1"><div class="caption">Best-run cleaned mask</div></div>
+        </div>
+
+        <div class="split-title">
+          <h3>Comparison Matrix</h3>
+          <span>The green row is the selected best-scoring comparison run for this tab.</span>
+        </div>
+        <div class="comparison-wrap">
+          <table>
+            <thead>
+              <tr><th>Combination</th><th>Status</th><th>Score</th><th>Grade</th><th>Detection Requested</th></tr>
+            </thead>
+            <tbody>
+                  <tr class="">
+                    <td>clahe+auto</td>
+                    <td>OK</td>
+                    <td class="score">70.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+contour</td>
+                    <td>OK</td>
+                    <td class="score">70.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+edge</td>
+                    <td>OK</td>
+                    <td class="score">70.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+hough</td>
+                    <td>OK</td>
+                    <td class="score">70.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+auto</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+contour</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+edge</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+hough</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+auto</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+contour</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+edge</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+hough</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="best-row">
+                    <td>hist_eq+auto</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+contour</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+edge</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+hough</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+auto</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+contour</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+edge</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+hough</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>hough</td>
+                  </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article id="doc_2" class="tab-panel">
+        <div class="sample-heading">
+          <div>
+            <div class="eyebrow dark">Doc 2</div>
+            <h2>Doc 2 Pipeline Results</h2>
+          </div>
+          <p>Best run: <strong>clahe+auto</strong>, detection used: <strong>contour</strong>, score: <strong>55.0%</strong>.</p>
+        </div>
+
+        <div class="result-grid">
+          <div class="summary-panel">
+            <span class="status warn">Default: PASS (with warnings)</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>55.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>PASS (with warnings)</strong><span>Decision</span></div>
+              <div class="metric"><strong>95.62</strong><span>Blur score</span></div>
+              <div class="metric"><strong>7.68%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_2/default/pipeline_summary.png" alt="Default pipeline summary for doc_2">
+            <div class="caption">Default CLAHE plus contour run for Doc 2.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Best Run</h3>
+          <span>18 successful combinations, 2 failed detections</span>
+        </div>
+        <div class="result-grid compact">
+          <div class="summary-panel">
+            <span class="status warn">Best: PASS (with warnings)</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>55.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>PASS (with warnings)</strong><span>Decision</span></div>
+              <div class="metric"><strong>95.62</strong><span>Blur score</span></div>
+              <div class="metric"><strong>7.68%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_2/best/pipeline_summary.png" alt="Best pipeline summary for doc_2">
+            <div class="caption">Best-scoring comparison artifact for Doc 2: clahe+auto.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Stage Artifacts</h3>
+          <span>Generated from the selected best run</span>
+        </div>
+        <div class="image-grid">
+          <div class="image-card"><img src="assets/doc_2/best/original.png" alt="Original doc_2"><div class="caption">Original input</div></div>
+          <div class="image-card"><img src="assets/doc_2/best/enhanced.png" alt="Enhanced doc_2"><div class="caption">Best-run enhancement</div></div>
+          <div class="image-card"><img src="assets/doc_2/best/edges.png" alt="Edges doc_2"><div class="caption">Best-run edge map</div></div>
+          <div class="image-card"><img src="assets/doc_2/best/corner_detection.png" alt="Corners doc_2"><div class="caption">Best-run detected corners</div></div>
+          <div class="image-card"><img src="assets/doc_2/best/thresholded.png" alt="Threshold doc_2"><div class="caption">Best-run adaptive threshold</div></div>
+          <div class="image-card"><img src="assets/doc_2/best/cleaned_mask.png" alt="Best-run cleaned mask doc_2"><div class="caption">Best-run cleaned mask</div></div>
+        </div>
+
+        <div class="split-title">
+          <h3>Comparison Matrix</h3>
+          <span>The green row is the selected best-scoring comparison run for this tab.</span>
+        </div>
+        <div class="comparison-wrap">
+          <table>
+            <thead>
+              <tr><th>Combination</th><th>Status</th><th>Score</th><th>Grade</th><th>Detection Requested</th></tr>
+            </thead>
+            <tbody>
+                  <tr class="best-row">
+                    <td>clahe+auto</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+contour</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+edge</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+hough</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+auto</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+contour</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+edge</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+hough</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+auto</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+contour</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+edge</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+hough</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+auto</td>
+                    <td>OK</td>
+                    <td class="score">30.0%</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+contour</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+edge</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+hough</td>
+                    <td>OK</td>
+                    <td class="score">30.0%</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+auto</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+contour</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+edge</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+hough</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>hough</td>
+                  </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article id="doc_3" class="tab-panel">
+        <div class="sample-heading">
+          <div>
+            <div class="eyebrow dark">Doc 3</div>
+            <h2>Doc 3 Pipeline Results</h2>
+          </div>
+          <p>Best run: <strong>clahe+auto</strong>, detection used: <strong>contour</strong>, score: <strong>65.0%</strong>.</p>
+        </div>
+
+        <div class="result-grid">
+          <div class="summary-panel">
+            <span class="status warn">Default: PASS (with warnings)</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>65.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>PASS (with warnings)</strong><span>Decision</span></div>
+              <div class="metric"><strong>80.61</strong><span>Blur score</span></div>
+              <div class="metric"><strong>8.82%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_3/default/pipeline_summary.png" alt="Default pipeline summary for doc_3">
+            <div class="caption">Default CLAHE plus contour run for Doc 3.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Best Run</h3>
+          <span>5 successful combinations, 15 failed detections</span>
+        </div>
+        <div class="result-grid compact">
+          <div class="summary-panel">
+            <span class="status warn">Best: PASS (with warnings)</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>65.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>PASS (with warnings)</strong><span>Decision</span></div>
+              <div class="metric"><strong>80.61</strong><span>Blur score</span></div>
+              <div class="metric"><strong>8.82%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_3/best/pipeline_summary.png" alt="Best pipeline summary for doc_3">
+            <div class="caption">Best-scoring comparison artifact for Doc 3: clahe+auto.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Stage Artifacts</h3>
+          <span>Generated from the selected best run</span>
+        </div>
+        <div class="image-grid">
+          <div class="image-card"><img src="assets/doc_3/best/original.png" alt="Original doc_3"><div class="caption">Original input</div></div>
+          <div class="image-card"><img src="assets/doc_3/best/enhanced.png" alt="Enhanced doc_3"><div class="caption">Best-run enhancement</div></div>
+          <div class="image-card"><img src="assets/doc_3/best/edges.png" alt="Edges doc_3"><div class="caption">Best-run edge map</div></div>
+          <div class="image-card"><img src="assets/doc_3/best/corner_detection.png" alt="Corners doc_3"><div class="caption">Best-run detected corners</div></div>
+          <div class="image-card"><img src="assets/doc_3/best/thresholded.png" alt="Threshold doc_3"><div class="caption">Best-run adaptive threshold</div></div>
+          <div class="image-card"><img src="assets/doc_3/best/cleaned_mask.png" alt="Best-run cleaned mask doc_3"><div class="caption">Best-run cleaned mask</div></div>
+        </div>
+
+        <div class="split-title">
+          <h3>Comparison Matrix</h3>
+          <span>The green row is the selected best-scoring comparison run for this tab.</span>
+        </div>
+        <div class="comparison-wrap">
+          <table>
+            <thead>
+              <tr><th>Combination</th><th>Status</th><th>Score</th><th>Grade</th><th>Detection Requested</th></tr>
+            </thead>
+            <tbody>
+                  <tr class="best-row">
+                    <td>clahe+auto</td>
+                    <td>OK</td>
+                    <td class="score">65.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+contour</td>
+                    <td>OK</td>
+                    <td class="score">65.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+edge</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+hough</td>
+                    <td>OK</td>
+                    <td class="score">65.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+auto</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+contour</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+edge</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+hough</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+auto</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+contour</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+edge</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+hough</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+auto</td>
+                    <td>OK</td>
+                    <td class="score">45.0%</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+contour</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+edge</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+hough</td>
+                    <td>OK</td>
+                    <td class="score">45.0%</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+auto</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+contour</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+edge</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+hough</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article id="doc_4" class="tab-panel">
+        <div class="sample-heading">
+          <div>
+            <div class="eyebrow dark">Doc 4</div>
+            <h2>Doc 4 Pipeline Results</h2>
+          </div>
+          <p>Best run: <strong>clahe+auto</strong>, detection used: <strong>contour</strong>, score: <strong>90.0%</strong>.</p>
+        </div>
+
+        <div class="result-grid">
+          <div class="summary-panel">
+            <span class="status ok">Default: PASS</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>90.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>PASS</strong><span>Decision</span></div>
+              <div class="metric"><strong>265.15</strong><span>Blur score</span></div>
+              <div class="metric"><strong>12.12%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_4/default/pipeline_summary.png" alt="Default pipeline summary for doc_4">
+            <div class="caption">Default CLAHE plus contour run for Doc 4.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Best Run</h3>
+          <span>18 successful combinations, 2 failed detections</span>
+        </div>
+        <div class="result-grid compact">
+          <div class="summary-panel">
+            <span class="status ok">Best: PASS</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>90.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>PASS</strong><span>Decision</span></div>
+              <div class="metric"><strong>265.15</strong><span>Blur score</span></div>
+              <div class="metric"><strong>12.12%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_4/best/pipeline_summary.png" alt="Best pipeline summary for doc_4">
+            <div class="caption">Best-scoring comparison artifact for Doc 4: clahe+auto.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Stage Artifacts</h3>
+          <span>Generated from the selected best run</span>
+        </div>
+        <div class="image-grid">
+          <div class="image-card"><img src="assets/doc_4/best/original.png" alt="Original doc_4"><div class="caption">Original input</div></div>
+          <div class="image-card"><img src="assets/doc_4/best/enhanced.png" alt="Enhanced doc_4"><div class="caption">Best-run enhancement</div></div>
+          <div class="image-card"><img src="assets/doc_4/best/edges.png" alt="Edges doc_4"><div class="caption">Best-run edge map</div></div>
+          <div class="image-card"><img src="assets/doc_4/best/corner_detection.png" alt="Corners doc_4"><div class="caption">Best-run detected corners</div></div>
+          <div class="image-card"><img src="assets/doc_4/best/thresholded.png" alt="Threshold doc_4"><div class="caption">Best-run adaptive threshold</div></div>
+          <div class="image-card"><img src="assets/doc_4/best/cleaned_mask.png" alt="Best-run cleaned mask doc_4"><div class="caption">Best-run cleaned mask</div></div>
+        </div>
+
+        <div class="split-title">
+          <h3>Comparison Matrix</h3>
+          <span>The green row is the selected best-scoring comparison run for this tab.</span>
+        </div>
+        <div class="comparison-wrap">
+          <table>
+            <thead>
+              <tr><th>Combination</th><th>Status</th><th>Score</th><th>Grade</th><th>Detection Requested</th></tr>
+            </thead>
+            <tbody>
+                  <tr class="best-row">
+                    <td>clahe+auto</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+contour</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+edge</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+hough</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+auto</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+contour</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+edge</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+hough</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+auto</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+contour</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+edge</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+hough</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+auto</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+contour</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+edge</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+hough</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+auto</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+contour</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+edge</td>
+                    <td>OK</td>
+                    <td class="score">90.0%</td>
+                    <td>PASS</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+hough</td>
+                    <td>OK</td>
+                    <td class="score">30.0%</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article id="doc_5" class="tab-panel">
+        <div class="sample-heading">
+          <div>
+            <div class="eyebrow dark">Doc 5</div>
+            <h2>Doc 5 Pipeline Results</h2>
+          </div>
+          <p>Best run: <strong>clahe+edge</strong>, detection used: <strong>edge</strong>, score: <strong>55.0%</strong>.</p>
+        </div>
+
+        <div class="result-grid">
+          <div class="summary-panel">
+            <span class="status fail">Default: FAIL</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>40.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>FAIL</strong><span>Decision</span></div>
+              <div class="metric"><strong>0.34</strong><span>Blur score</span></div>
+              <div class="metric"><strong>0.00%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_5/default/pipeline_summary.png" alt="Default pipeline summary for doc_5">
+            <div class="caption">Default CLAHE plus contour run for Doc 5.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Best Run</h3>
+          <span>11 successful combinations, 9 failed detections</span>
+        </div>
+        <div class="result-grid compact">
+          <div class="summary-panel">
+            <span class="status warn">Best: PASS (with warnings)</span>
+            <div class="metric-grid">
+              <div class="metric"><strong>55.0%</strong><span>Quality score</span></div>
+              <div class="metric"><strong>PASS (with warnings)</strong><span>Decision</span></div>
+              <div class="metric"><strong>42.77</strong><span>Blur score</span></div>
+              <div class="metric"><strong>6.58%</strong><span>Text coverage</span></div></div>
+          </div>
+          <div class="image-card">
+            <img src="assets/doc_5/best/pipeline_summary.png" alt="Best pipeline summary for doc_5">
+            <div class="caption">Best-scoring comparison artifact for Doc 5: clahe+edge.</div>
+          </div>
+        </div>
+
+        <div class="split-title">
+          <h3>Stage Artifacts</h3>
+          <span>Generated from the selected best run</span>
+        </div>
+        <div class="image-grid">
+          <div class="image-card"><img src="assets/doc_5/best/original.png" alt="Original doc_5"><div class="caption">Original input</div></div>
+          <div class="image-card"><img src="assets/doc_5/best/enhanced.png" alt="Enhanced doc_5"><div class="caption">Best-run enhancement</div></div>
+          <div class="image-card"><img src="assets/doc_5/best/edges.png" alt="Edges doc_5"><div class="caption">Best-run edge map</div></div>
+          <div class="image-card"><img src="assets/doc_5/best/corner_detection.png" alt="Corners doc_5"><div class="caption">Best-run detected corners</div></div>
+          <div class="image-card"><img src="assets/doc_5/best/thresholded.png" alt="Threshold doc_5"><div class="caption">Best-run adaptive threshold</div></div>
+          <div class="image-card"><img src="assets/doc_5/best/cleaned_mask.png" alt="Best-run cleaned mask doc_5"><div class="caption">Best-run cleaned mask</div></div>
+        </div>
+
+        <div class="split-title">
+          <h3>Comparison Matrix</h3>
+          <span>The green row is the selected best-scoring comparison run for this tab.</span>
+        </div>
+        <div class="comparison-wrap">
+          <table>
+            <thead>
+              <tr><th>Combination</th><th>Status</th><th>Score</th><th>Grade</th><th>Detection Requested</th></tr>
+            </thead>
+            <tbody>
+                  <tr class="">
+                    <td>clahe+auto</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+contour</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="best-row">
+                    <td>clahe+edge</td>
+                    <td>OK</td>
+                    <td class="score">55.0%</td>
+                    <td>PASS (with warnings)</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>clahe+hough</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+auto</td>
+                    <td>OK</td>
+                    <td class="score">30.0%</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+contour</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+edge</td>
+                    <td>OK</td>
+                    <td class="score">30.0%</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>denoise+hough</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+auto</td>
+                    <td>OK</td>
+                    <td class="score">30.0%</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+contour</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+edge</td>
+                    <td>OK</td>
+                    <td class="score">30.0%</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>gamma+hough</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+auto</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+contour</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+edge</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>hist_eq+hough</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+auto</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>auto</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+contour</td>
+                    <td>OK</td>
+                    <td class="score">40.0%</td>
+                    <td>FAIL</td>
+                    <td>contour</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+edge</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>edge</td>
+                  </tr>
+                  <tr class="">
+                    <td>none+hough</td>
+                    <td>FAIL</td>
+                    <td class="score">N/A</td>
+                    <td>FAIL</td>
+                    <td>hough</td>
+                  </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="section-inner">
+      <div class="section-heading">
+        <h2>Commands Run</h2>
+        <p class="section-note">All commands used the existing local virtual environment.</p>
+      </div>
+      <code class="code-line">.venv/bin/python src/main.py samples/doc_N.jpg --summary --output output/doc_N_default</code>
+      <br>
+      <code class="code-line">.venv/bin/python src/main.py samples/doc_N.jpg --compare --output output/doc_N_comparison</code>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="section-inner">Generated locally for GitHub Pages from sample outputs copied into docs/assets.</div>
+  </footer>
+
+  <script>
+    const buttons = document.querySelectorAll('.tab-button');
+    const panels = document.querySelectorAll('.tab-panel');
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = button.dataset.tab;
+        buttons.forEach((item) => item.classList.toggle('active', item === button));
+        panels.forEach((panel) => panel.classList.toggle('active', panel.id === target));
+      });
+    });
+  </script>
+</body>
+</html>
